@@ -165,10 +165,11 @@ arma::mat bootcjj(arma::mat X, Function MLPB3,
                   int n_sig = 750){
 
   mat boot_cjj(boot_rep, up_limit);
+
   for (int i = 1; i<=boot_rep; i++){
 
     mat bootjj = (boot_cjj_func(X, MLPB3, boot_rep, n_boot,n_sig,window_size));
-    rowvec a = a_func(bootjj,up_limit = up_limit, n_sig = n_sig, window_size = window_size);
+    rowvec a = a_func(bootjj,up_limit, n_sig, window_size);
     boot_cjj.row(i-1) = a;
   }
 

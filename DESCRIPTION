@@ -1,7 +1,7 @@
 Package: dfConn
 Type: Package
 Title: Dynamic Functional Connectivity Analysis
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(person("Zikai", "Lin", email = "ziklin@iu.edu", role = c("aut", "cre")),
             person("Maria", "Kudela", email = "maria.kudela@gmail.com", role = c("aut")),
             person("Jaroslaw","Harezlak",email = "harezlak@iu.edu", role = c("aut")),
@@ -13,17 +13,17 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 2.10)
-Suggests: iterators, testthat, itertools
-Imports: doParallel, nlme, parallel, foreach, ggplot2, knitr,
-        RColorBrewer, fields, latex2exp, mgcv, gplots, splines, stats,
-        stringr, graphics, data.table, gtools, Rcpp (>= 0.12.18)
+Suggests: iterators, testthat, itertools, mgcv, latex2exp
+Imports: doParallel, nlme, parallel, foreach, ggplot2, fields, gplots,
+        splines, stats, stringr, graphics, data.table, gtools, Rcpp (>=
+        0.12.18)
 LinkingTo: Rcpp, RcppArmadillo
 RoxygenNote: 6.1.1
 NeedsCompilation: yes
-Packaged: 2019-03-22 16:22:03 UTC; ziklin
+Packaged: 2019-03-25 19:38:03 UTC; ziklin
 Author: Zikai Lin [aut, cre],
   Maria Kudela [aut],
   Jaroslaw Harezlak [aut],
   Mario Dzemidzic [aut]
 Repository: CRAN
-Date/Publication: 2019-03-23 09:13:24 UTC
+Date/Publication: 2019-03-25 22:33:20 UTC

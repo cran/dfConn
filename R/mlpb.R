@@ -115,7 +115,7 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
         comparison <- matrix(NA, num.comp, 2)
         
         
-        path.out <- paste(output_dir, tjj.name[jj], save_file_suffix, "/", sep = "")
+        path.out <- file.path(output_dir, paste(tjj.name[jj], save_file_suffix, "/", sep = ""))
         
         
         
@@ -240,7 +240,8 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
             
             
             
-            rd_dir <- paste(path.out, "Rdata/", sep = "")
+            rd_dir <- file.path(path.out, "Rdata/")
+            
             dir.create(rd_dir, recursive = TRUE, showWarnings = FALSE)
             dir.create(path = paste(output_dir, "/result", save_file_suffix, .Platform$file.sep, tjj.name[jj], save_file_suffix, 
                 sep = ""), showWarnings = FALSE, recursive = TRUE)

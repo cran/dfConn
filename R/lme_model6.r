@@ -114,7 +114,8 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     
     
     
-    output_obj <- list()
+    output_obj <- list() # Empty object initialization
+    
     # save parameters
     output_obj$params <- list()
     output_obj$params$dataList <- dataList
@@ -140,8 +141,6 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     "%dopar%" <- foreach::"%dopar%"
     ijk <- NA
     
-    
-    # output_obj$models_est_CI <- list() output_obj$output_by_row <- list()
     
     output.m6.REML.list <- foreach::foreach(ijk = 1:length(files.to.run.analysis), .combine = "comb", .packages = c("doParallel"), .export = c("ZOSull"), .init = list(list(), 
         list())) %dopar% {
