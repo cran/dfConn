@@ -1,16 +1,7 @@
 #' @description Linear mixed effect model for dynamic functional connectivity.
 #' @title Semiparametric modelling - dynamic functional connectivity model
 #' @param dataList list, a list of data matrices.
-#' @param output_dir string, directory for storing output files.
-#' @param cores integer, number of cores to register while running parallel jobs.
-#' @param seed integer, random seed.
-#' @param subjects character vector, names of subjects.
-#' @param eff_time_points integer, effective scan time points.
-#' @param num.scan integer, number of scan.
-#' @param ntps.per.scan integer, number of timepoints per scan.
-#' @param save_res logical, whether to save the result or not, if true, an output directory should be provided.
-#' @param ngrid integer, number of grids.
-#' @param ci_level numeric, level of confidence interval, with default 0.975.
+#' @param op_lme list, options constructed by function \code{options_lme}, see \code{options_lme}.
 #' @return An object of list containing all the information of the static functional connectivity linear mixed model. It stores the information of model parameters, input data, and model results. 
 #' \describe{
 #' \item{params}{Store the parameters for the linear mixed model}
@@ -48,9 +39,13 @@
 #' time.points <- c(1:40,51:90) 
 #'                  
 #' num.scan <- 2 # Each subject has 2 scans
-#' ntps.per.scan <- 40 # Each scan has 105 time points
 #' 
-#' resDyn <- lmmDyn(dataList, subjects, time.points, num.scan, ntps.per.scan)
+#' op <- options_lme(effective_tp = time.points, 
+#'                  ntps.per.scan = 40,
+#'                  subjects = subjects, 
+#'                  num.scan = 2)
+#'                  
+#' resDyn <- lmmDyn(dataList, op)
 #' rm(list = c('subjects', 'MLPB_output_median', 'time.points', 'num.scan', 'ntps.per.scan', 'resDyn'))
 #' gc()
 #' }
@@ -65,18 +60,38 @@
 #' time.points <- c(1:105, 126:230, 251:355,
 #'                  376:480, 501:605, 626:730) 
 #'                  
+#'                  
 #' num.scan <- 6 # Each subject has 6 scans
 #' ntps.per.scan <- 105 # Each scan has 105 time points
 #' 
-#' resDyn <- lmmDyn(MLPB_output_median, subjects, time.points, num.scan, ntps.per.scan, cores = 5)
+#' op <- options_lme(effective_tp = time.points, 
+#'                  ntps.per.scan = ntps.per.scan,
+#'                  subjects = subjects, 
+#'                  num.scan = num.scan, 
+#'                  cores = 5)
+#'                  
+#' resDyn <- lmmDyn(MLPB_output_median, op)
 #' }
 #' @export
 #'
 
 
-lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan, save_res = FALSE, output_dir = NULL, ci_level = 0.975, ngrid = 201, cores = 1, seed = NULL) {
+lmmDyn <- function(dataList, op_lme) {
     
     
+    # Load input arguments from options list
+    subjects <- op_lme$subjects
+    eff_time_points <- op_lme$effective_tp
+    num.scan <- op_lme$num.scan
+    ntps.per.scan <- op_lme$ntps.per.scan
+    output_dir <- op_lme$output_dir
+    ci_level <- op_lme$ci_level
+    cores <- op_lme$cores
+    ngrid <- op_lme$ngrid
+    numIntKnots <- op_lme$numIntKnots
+    seed <- op_lme$seed
+    parallel_run <- op_lme$parallel_run
+    save_output <- op_lme$save_output
     
     requireNamespace("foreach")
     requireNamespace("stats")
@@ -89,7 +104,7 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     
     
     ## Create directory for results
-    if (isTRUE(save_res)) {
+    if (isTRUE(save_output)) {
         if (!is.null(output_dir)) {
           if (!dir.exists(output_dir)) {
             dir.create(output_dir, showWarnings = FALSE)
@@ -130,10 +145,11 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     
     # Parallel computing
     output_obj$parallel <- list()
-    output_obj$parallel$is_parallel <- ifelse(cores > 1, T, F)
+    output_obj$parallel$is_parallel <- parallel_run
     output_obj$parallel$cores <- cores
     
-    if(cores>1){
+    # if cores > 1, we consider it to be run in parallel, set up parallel cluster
+    if(parallel_run){
       cl <- parallel::makePSOCKcluster(2)
       doParallel::registerDoParallel(cl, cores = cores)
     }
@@ -142,19 +158,21 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     ijk <- NA
     
     
-    output.m6.REML.list <- foreach::foreach(ijk = 1:length(files.to.run.analysis), .combine = "comb", .packages = c("doParallel"), .export = c("ZOSull"), .init = list(list(), 
-        list())) %dopar% {
-        # load data for (ijk in 1:length(files.to.run.analysis)){
-        
-        data.data1 <- files.to.run.analysis[[ijk]]
-        series_not_NA <- which(is.finite(data.data1[, 1]))
+    output.m6.REML.list <- foreach::foreach(ijk = 1:length(files.to.run.analysis),
+                                            .combine = "comb",
+                                            .packages = c("doParallel"),
+                                            .export = c("ZOSull"),
+                                            .init = list(list(), list())) %dopar% {
+
+        data_org <- files.to.run.analysis[[ijk]]
+        series_not_NA <- which(is.finite(data_org[, 1]))
         
         if (length(series_not_NA) == num.subjects) {
-            NA.do.wywalenia <- 0
+            missing_to_remove <- 0
         } else {
             
             ind.sub <- c(1:num.subjects)
-            NA.do.wywalenia <- ind.sub[!(c(1:num.subjects) %in% series_not_NA)]
+            missing_to_remove <- ind.sub[!(c(1:num.subjects) %in% series_not_NA)]
         }
         
         
@@ -163,40 +181,42 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
         
         
         if (minus.subj != 0) {
-            data.data1 <- data.data1[-c(NA.do.wywalenia), ]
+          data_org <- data_org[-c(missing_to_remove), ]
         } else {
-            data.data1 <- data.data1
+          data_org <- data_org
         }
         
         num.of.sub <- num.subjects - minus.subj
-        # print(data.data1)
-        data.data1 <- data.data1[, eff_time_points]
+
+        data_org <- data_org[, eff_time_points] # Extract the effective dFC trajectories 
+        
         name.rdata.save <- names(files.to.run.analysis)[ijk]
         name.rdata.save1 <- name.rdata.save
         
         # dummy data
         
-        data.data2 <- data.data1
-        
-        GPTS <- subjects
+        data.data2 <- data_org
+      
         
         if (num.of.sub != num.subjects) {
-            GPTS <- GPTS[-c(NA.do.wywalenia)]
+          # Remove missing scans
+          subjects <- subjects[-c(missing_to_remove)]
         } else {
-            GPTS <- GPTS
+          # No missing scan, do nothing
+          subjects <- subjects
         }
         
         
         ###### data for 6 scan
         full.ntps <- ntps.per.scan * num.scan
-        subject <- as.vector(t(matrix(rep(GPTS, full.ntps), num.of.sub, full.ntps)))
-        long.scans.est <- as.vector(t(data.data1))
+        subject <- as.vector(t(matrix(rep(subjects, full.ntps), num.of.sub, full.ntps)))
+        long.scans.est <- as.vector(t(data_org))
         scan <- c()
         for (i in 1:num.scan) {
             scan <- c(scan, rep(sprintf("s%d", i), ntps.per.scan))
         }
         scan <- rep(scan, num.of.sub)
-        group <- as.vector(matrix(rep(c(rep("Beer", 0.5 * full.ntps), rep("Gatorade", 0.5 * full.ntps)), num.of.sub), ntps.per.scan * num.scan, num.of.sub))
+        group <- as.vector(matrix(rep(c(rep("ConditionA", 0.5 * full.ntps), rep("ConditionB", 0.5 * full.ntps)), num.of.sub), ntps.per.scan * num.scan, num.of.sub))
         time <- as.vector(matrix(rep(rep(c(1:ntps.per.scan), num.scan), num.of.sub), ntps.per.scan * num.scan, num.of.sub))
         
         scan.long <- data.frame(cbind(subject, long.scans.est, time, group, scan))
@@ -210,7 +230,7 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
         y <- scan.long$Corr.est
         x <- scan.long$time
         idnumOrig <- scan.long$subject
-        typeIsB <- (scan.long$group == "Gatorade") * 1
+        typeIsB <- (scan.long$group == "ConditionB") * 1
         scan <- scan.long$scan
         flavor <- scan.long$group
         
@@ -232,7 +252,7 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
         X <- cbind(Xbase, XBvA)
         colnames(X) <- c("Intercept", "time", "Intercept difference", "Slope difference")
         
-        numIntKnots <- 40
+        
         intKnots <- quantile(unique(x), seq(0, 1, length = numIntKnots + 2))[-c(1, numIntKnots + 2)]
         
         range.x <- c(1.01 * min(x) - 0.01 * max(x), 1.01 * max(x) - 0.01 * min(x))
@@ -286,7 +306,7 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
             output.6.REML.row[1, size.fixed + 9] <- name.rdata.save1
             output.6.REML.row[1, size.fixed + 10] <- minus.subj
             
-            if (isTRUE(save_res)) 
+            if (isTRUE(save_output)) 
                 write.csv(output.6.REML.row, paste(path4, "outpu6_REML_", name.rdata.save1, ".csv", sep = ""), row.names = FALSE)
             
             ####################################################################################################### 
@@ -297,9 +317,8 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
             
             # Set up plotting grids:
             
-            ng <- ngrid
-            xg <- seq(range.x[1], range.x[2], length = ng)
-            Xg <- cbind(rep(1, ng), xg)
+            xg <- seq(range.x[1], range.x[2], length = ngrid)
+            Xg <- cbind(rep(1, ngrid), xg)
             Zg <- ZOSull(xg, intKnots = intKnots, range.x = range.x)
             betaHat <- as.vector(fit.6.REML$coef$fixed)
             uHatBase <- as.vector(fit.6.REML$coef$random[[1]])
@@ -356,12 +375,7 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
             CTC <- crossprod(Cmat)
             fullCovMat <- qr.solve(CTC + lamMat)
             
-            
-            
-            
             # calculate edf according to formula
-            
-            
             S.1 <- tcrossprod(fullCovMat, Cmat)
             diag.S <- matrix(NA, dim(Cmat)[1], 1)
             for (i in (1:dim(Cmat)[1])) {
@@ -392,38 +406,38 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
             contInds <- c(3, 4, (ncZ + 5):(2 * ncZ + 4))
             contCovMat <- fullCovMat[contInds, contInds]
             
-            BeerInds <- c(1, 2, (csdV[1] + 1):(csdV[2]))
-            BeerCovMat <- fullCovMat[BeerInds, BeerInds]
+            Condition.A.Inds <- c(1, 2, (csdV[1] + 1):(csdV[2]))
+            Condition.A.CovMat <- fullCovMat[Condition.A.Inds, Condition.A.Inds]
             
             
-            GatInds <- c(1, 2, 3, 4, (csdV[1] + 1):(csdV[3]))
-            GatCovMat <- fullCovMat[GatInds, GatInds]
+            Condition.B.Inds <- c(1, 2, 3, 4, (csdV[1] + 1):(csdV[3]))
+            Condition.B.CovMat <- fullCovMat[Condition.B.Inds, Condition.B.Inds]
             
-            sdg.B <- sqrt(sigsq.epsHat) * sqrt(diag(Cg %*% BeerCovMat %*% t(Cg)))
-            lowerg.Beer <- fhatBaseg - qnorm(ci_level) * sdg.B
-            upperg.Beer <- fhatBaseg + qnorm(ci_level) * sdg.B
+            sdg.B <- sqrt(sigsq.epsHat) * sqrt(diag(Cg %*% Condition.A.CovMat %*% t(Cg)))
+            lowerg.Condition.A <- fhatBaseg - qnorm(ci_level) * sdg.B # Condition A estimate confidence interval lower bound
+            upperg.Condition.A <- fhatBaseg + qnorm(ci_level) * sdg.B # Condition A estimate confidence interval upper bound
             
             
             Cg.G <- cbind(Xg, Xg, Zg, Zg)
-            sdg.G <- sqrt(sigsq.epsHat) * sqrt(diag(Cg.G %*% GatCovMat %*% t(Cg.G)))
-            lowerg.Gat <- fhatGatg - qnorm(ci_level) * sdg.G
-            upperg.Gat <- fhatGatg + qnorm(ci_level) * sdg.G
+            sdg.G <- sqrt(sigsq.epsHat) * sqrt(diag(Cg.G %*% Condition.B.CovMat %*% t(Cg.G)))
+            lowerg.Condition.B <- fhatGatg - qnorm(ci_level) * sdg.G # Condition B estimate confidence interval lower bound
+            upperg.Condition.B <- fhatGatg + qnorm(ci_level) * sdg.G # Condition B estimate confidence interval upper bound
             
             
             est.CI <- matrix(NA, 9, ngrid)
-            est.CI[1, ] <- fhatBaseg
+            est.CI[1, ] <- fhatBaseg 
             est.CI[2, ] <- Contg
             est.CI[3, ] <- fhatGatg
             est.CI[4, ] <- lowerg
             est.CI[5, ] <- upperg
             
-            est.CI[6, ] <- lowerg.Beer
-            est.CI[7, ] <- upperg.Beer
+            est.CI[6, ] <- lowerg.Condition.A
+            est.CI[7, ] <- upperg.Condition.A
             
-            est.CI[8, ] <- lowerg.Gat
-            est.CI[9, ] <- upperg.Gat
+            est.CI[8, ] <- lowerg.Condition.B
+            est.CI[9, ] <- upperg.Condition.B
             
-            if (isTRUE(save_res)) {
+            if (isTRUE(save_output)) {
                 write.csv(est.CI, paste(path3, "modelDyn_REML_lme", "_", name.rdata.save1, ".csv", sep = ""), row.names = FALSE)
                 save(output.6.REML.row, file = file.path(path1, paste("output_fit6_REML", "_", name.rdata.save1, ".RData", sep = "")))
                 write.csv(output.6.REML.row, paste(path5, "outpu6_REML_", name.rdata.save1, ".csv", sep = ""), row.names = FALSE)
@@ -454,11 +468,12 @@ lmmDyn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
     
     output_obj$modelDyn_results <- as.data.frame(output.m6.REML)
     
-    if (isTRUE(save_res)) {
+    if (isTRUE(save_output)) {
         write.csv(output.m6.REML, paste(path2, "modelDyn_REML_lme_all.csv", sep = ""), row.names = FALSE)
     }
-    #class(output_obj) <- "dFClmm"
-    if(cores>1){
+  
+    # Clean up cluster for parallel computing
+    if(parallel_run){
       doParallel::stopImplicitCluster(cl)
     }
 

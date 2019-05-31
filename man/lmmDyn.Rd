@@ -4,32 +4,12 @@
 \alias{lmmDyn}
 \title{Semiparametric modelling - dynamic functional connectivity model}
 \usage{
-lmmDyn(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
-  save_res = FALSE, output_dir = NULL, ci_level = 0.975,
-  ngrid = 201, cores = 1, seed = NULL)
+lmmDyn(dataList, op_lme)
 }
 \arguments{
 \item{dataList}{list, a list of data matrices.}
 
-\item{subjects}{character vector, names of subjects.}
-
-\item{eff_time_points}{integer, effective scan time points.}
-
-\item{num.scan}{integer, number of scan.}
-
-\item{ntps.per.scan}{integer, number of timepoints per scan.}
-
-\item{save_res}{logical, whether to save the result or not, if true, an output directory should be provided.}
-
-\item{output_dir}{string, directory for storing output files.}
-
-\item{ci_level}{numeric, level of confidence interval, with default 0.975.}
-
-\item{ngrid}{integer, number of grids.}
-
-\item{cores}{integer, number of cores to register while running parallel jobs.}
-
-\item{seed}{integer, random seed.}
+\item{op_lme}{list, options constructed by function \code{options_lme}, see \code{options_lme}.}
 }
 \value{
 An object of list containing all the information of the static functional connectivity linear mixed model. It stores the information of model parameters, input data, and model results. 
@@ -71,9 +51,13 @@ subjects <- c('subject1', 'subject2', 'subject3', 'subject4', 'subject5')
 time.points <- c(1:40,51:90) 
                  
 num.scan <- 2 # Each subject has 2 scans
-ntps.per.scan <- 40 # Each scan has 105 time points
 
-resDyn <- lmmDyn(dataList, subjects, time.points, num.scan, ntps.per.scan)
+op <- options_lme(effective_tp = time.points, 
+                 ntps.per.scan = 40,
+                 subjects = subjects, 
+                 num.scan = 2)
+                 
+resDyn <- lmmDyn(dataList, op)
 rm(list = c('subjects', 'MLPB_output_median', 'time.points', 'num.scan', 'ntps.per.scan', 'resDyn'))
 gc()
 }
@@ -88,9 +72,16 @@ subjects <- c('subject1', 'subject2', 'subject3', 'subject4', 'subject5')
 time.points <- c(1:105, 126:230, 251:355,
                  376:480, 501:605, 626:730) 
                  
+                 
 num.scan <- 6 # Each subject has 6 scans
 ntps.per.scan <- 105 # Each scan has 105 time points
 
-resDyn <- lmmDyn(MLPB_output_median, subjects, time.points, num.scan, ntps.per.scan, cores = 5)
+op <- options_lme(effective_tp = time.points, 
+                 ntps.per.scan = ntps.per.scan,
+                 subjects = subjects, 
+                 num.scan = num.scan, 
+                 cores = 5)
+                 
+resDyn <- lmmDyn(MLPB_output_median, op)
 }
 }

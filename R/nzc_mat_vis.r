@@ -20,7 +20,6 @@
 #' rm(list=c('DynModel_results','coverage.tbl.list'))
 #' gc()}       
 #' @export
-#' @keywords Non-zero coverage, matrix
 nzc_vis <- function(coverage.tbl.list, model_results, roi, ntps.per.scan, save_fig = FALSE, output_dir = NULL, alpha = 0.05, thres.cond1 = 0.5, thres.cond2 = 0.5, thres.diff = 0.1) {
     
 

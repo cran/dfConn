@@ -21,13 +21,23 @@ table_summarize.coverage <- function(dataList.CI, comparisonsName) {
         
     }
     
-    coverage.below.zero.cond.2 <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
-    coverage.below.zero.cond.diff <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
-    coverage.below.zero.cond.1 <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    coverage.below.zero.cond.2 <- data.frame(ROI_COMPARISON = comparisonsName,
+                                             ZERO_COVERAGE = rep(0, length(comparisonsName)))
     
-    coverage.above.zero.cond.2 <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
-    coverage.above.zero.cond.diff <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
-    coverage.above.zero.cond.1 <- data.frame(ROI_COMPARISON = comparisonsName, ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    coverage.below.zero.cond.diff <- data.frame(ROI_COMPARISON = comparisonsName,
+                                                ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    
+    coverage.below.zero.cond.1 <- data.frame(ROI_COMPARISON = comparisonsName,
+                                             ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    
+    coverage.above.zero.cond.2 <- data.frame(ROI_COMPARISON = comparisonsName,
+                                             ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    
+    coverage.above.zero.cond.diff <- data.frame(ROI_COMPARISON = comparisonsName,
+                                                ZERO_COVERAGE = rep(0, length(comparisonsName)))
+    
+    coverage.above.zero.cond.1 <- data.frame(ROI_COMPARISON = comparisonsName,
+                                             ZERO_COVERAGE = rep(0, length(comparisonsName)))
     
     for (i in 1:length(comparisonsName)) {
         

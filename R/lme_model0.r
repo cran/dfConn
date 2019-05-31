@@ -2,16 +2,7 @@
 #' 
 #' @title Semiparametric modelling - Static
 #' @param dataList list, list of data matrices .
-#' @param subjects character vector, names of subjects.
-#' @param eff_time_points integer vector, effective sacn timepoints.
-#' @param num.scan integer, number of scans.
-#' @param ntps.per.scan integer, number of timepoints per scan.
-#' @param save_res logical, whether to save the result or not, if true, an output directory should be provided.
-#' @param output_dir character, directory for output files.
-#' @param cores integer, number of cores to register for parallel jobs.
-#' @param seed numeric, random seed.
-#' @param ngrid integer, number of grids.
-#' @param ci_level numeric, level of confidence interval, default is 0.975.
+#' @param op_lme list, options constructed by function \code{options_lme}, see \code{options_lme}.
 #' @importFrom utils write.csv
 #' @importFrom parallel makePSOCKcluster
 #' @details 
@@ -55,7 +46,12 @@
 #' num.scan <- 6 # Each subject has 6 scans
 #' ntps.per.scan <- 105 # Each scan has 105 time points
 #' 
-#' resConn <- lmmConn(MLPB_output_median, subjects, time.points, num.scan, ntps.per.scan)
+#' op <- options_lme(effective_tp = time.points, 
+#'                  ntps.per.scan = ntps.per.scan,
+#'                  subjects = subjects, 
+#'                  num.scan = num.scan)
+#'                  
+#' resConn <- lmmConn(MLPB_output_median, op)
 #' \dontshow{
 #' rm(list = c('subjects', 'MLPB_output_median', 'time.points', 'num.scan', 'ntps.per.scan','resConn'))
 #' gc()}
@@ -65,8 +61,22 @@
 
 
 
-lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan, save_res = FALSE, output_dir = NULL, ci_level = 0.975, ngrid = 201, cores = 1, seed = NULL) {
+lmmConn <- function(dataList, op_lme) {
     
+  
+  # Load input arguments from options list
+  subjects <- op_lme$subjects
+  eff_time_points <- op_lme$effective_tp
+  num.scan <- op_lme$num.scan
+  ntps.per.scan <- op_lme$ntps.per.scan
+  output_dir <- op_lme$output_dir
+  ci_level <- op_lme$ci_level
+  cores <- op_lme$cores
+  ngrid <- op_lme$ngrid
+  seed <- op_lme$seed
+  parallel_run <- op_lme$parallel_run
+  save_output <- op_lme$save_output
+  
     requireNamespace("foreach")
     num.subjects <- length(subjects)
     
@@ -76,7 +86,7 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
     
     files.to.run.analysis <- dataList
     
-    if (isTRUE(save_res)) {
+    if (isTRUE(save_output)) {
         if (!is.null(output_dir)) {
           if (!dir.exists(output_dir)) {
             dir.create(output_dir)
@@ -159,17 +169,16 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
         
         # dummy data
         data.data2 <- data.data1
-        GPTS <- subjects
         
         if (num.of.sub != num.subjects) {
-            GPTS <- GPTS[-c(num_NA_series)]
+          subjects <- subjects[-c(num_NA_series)]
         } else {
-            GPTS <- GPTS
+          subjects <- subjects
         }
         
         ###### data for 6 scans
         full.ntps <- ntps.per.scan * num.scan
-        subject <- as.vector(t(matrix(rep(GPTS, full.ntps), num.of.sub, full.ntps)))
+        subject <- as.vector(t(matrix(rep(subjects, full.ntps), num.of.sub, full.ntps)))
         long.scans.est <- as.vector(t(data.data1))
         scan <- c()
         for (i in 1:num.scan) {
@@ -251,7 +260,7 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
             output.0.row[size.fixed + 7] <- name.rdata.save1
             output.0.row[size.fixed + 8] <- minus.subj
             
-            if (isTRUE(save_res)) {
+            if (isTRUE(save_output)) {
                 utils::write.csv(output.0.row, paste(path4, "outputConn_REML_", name.rdata.save1, ".csv", sep = ""), row.names = FALSE)
             }
             
@@ -320,7 +329,7 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
             
             output.0.row[(length(output.0.row) + 1)] <- sum(diag(diag.S))
             
-            if (isTRUE(save_res)) {
+            if (isTRUE(save_output)) {
                 utils::write.csv(output.0.row, file.path(path5, paste("outputConn_REML_", name.rdata.save1, ".csv", sep = "")), row.names = FALSE)
             }
             
@@ -374,7 +383,7 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
             est.CI[8, ] <- lowerg.Gat
             est.CI[9, ] <- upperg.Gat
             
-            if (isTRUE(save_res)) {
+            if (isTRUE(save_output)) {
                 utils::write.csv(est.CI, file.path(path3, paste("modelConn_REML_lme", "_", name.rdata.save1, ".csv", sep = "")), row.names = FALSE)
                 save(output.0, file = file.path(path1, paste("output_fit0_REML", "_", name.rdata.save1, ".RData", sep = "")))
             }
@@ -400,7 +409,7 @@ lmmConn <- function(dataList, subjects, eff_time_points, num.scan, ntps.per.scan
         "Xintercept_difference_DF", "Xintercept_difference_t-value", "Xintercept_difference_p-value", "AIC", "BIC", "logLik", "sigma_eps", "sigma_b0_unstruct", "sigma_a_unstruct", 
         "comparison", "missing_series", "edf")
     
-    if (isTRUE(save_res)) {
+    if (isTRUE(save_output)) {
         write.csv(output.m0, file.path(path2, paste("modelConn_REML_lme_all.csv", sep = "")), row.names = FALSE)
     }
     #class(output_obj) <- "dFClmm"

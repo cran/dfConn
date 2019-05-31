@@ -1,22 +1,13 @@
 #' @description Multivariate Linear Process Bootstrap (MLPB) method to assess the uncertainty in dynamic functional connectivity (dFC) by providing its confidence band.
 #' @title  Multivariate Linear Process Bootstrap Method
-#' @param dataList list, subject-specific data.
-#' @param output_dir character, output directory for bootstrap samples.
-#' @param rois vector of integers, specify the list of regions of interests
-#' @param boot_rep integer, bootstrapping repetition times
-#' @param subset.subject vector of character, which subject to run, specify the index in \code{dataList}, for example, c(1, 2, ...) 
-#' @param window_size integer, window size for sliding window technique
-#' @param timepoints integer, number of timepoints in total
-#' @param number_of_intervals integer, number of intervals in sliding window technique
-#' @param n_boot integer, number of bootstrap sample to be generated in MLPB
-#' @param cores integer, number of cores to register for parallel execution, if set to 1 a sequential job will be run
-#' @param save_file_suffix character, suffix of output files, treated as a labels.
+#' @param boot_options a list of option being specify by \code{option_control} function. 
 #' @importFrom stats cor
 #' @importFrom stats mad
 #' @importFrom stats median
 #' @importFrom parallel makePSOCKcluster
 #' @importFrom gtools combinations
 #' @importFrom Rcpp evalCpp
+#' @importFrom utils combn
 #' @import Rcpp
 #' @details The \code{dataList} parameter is a list of matrices which contains time series data of each region of interest (ROI). Output directory is required here because the results to be generate is massive. 
 #' @references Kudela et al. (2017) NeuroImage 10.1016/j.neuroimage.2017.01.056
@@ -25,8 +16,10 @@
 #' \dontshow{
 #' # Load sample data
 #' data(fMRI_dataList_shrinked)
-#' MLPB_boot(fMRI_dataList_shrinked, output_dir=tempdir(), rois = 1:2, timepoints = 5, window_size=5)
-#' rm(list=c('fMRI_dataList_shrinked'))
+#' boot_option <- options_boot(input_list = fMRI_dataList, output_dir = tempdir(),
+#'  rois = c(1,2), timepoints = 5, window_size = 5)
+#' MLPB_boot(boot_option)
+#' rm(list=c('fMRI_dataList_shrinked','boot_option'))
 #' gc()
 #' }
 #' \donttest{
@@ -34,18 +27,31 @@
 #' # Load sample data
 #' 
 #' data(fMRI_dataList)
-#' 
-#' MLPB_boot(fMRI_dataList, output_dir = tempdir(), 
-#'           rois = c(54,191,235), 
-#'           timepoints = 750)
+#' boot_option <- options_boot(input_list = fMRI_dataList, output_dir = tempdir(),
+#'  rois = c(1,2,3), timepoints = 5, window_size = 5)
+#' MLPB_boot(boot_option)
+#'
 #' }
-#' 
 #' @export
 #' @keywords bootstarpping
 #' 
 
-MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = NULL, save_file_suffix = "", window_size = 20, 
-    number_of_intervals = 1, boot_rep = 250, n_boot = 1, cores = 1) {
+MLPB_boot <- function(boot_options) {
+    
+  
+    # Read parameters
+    output_dir <- boot_options[["output_dir"]]
+    dataList <- boot_options[["dataList"]]
+    subset.subject <- boot_options[["subset"]]
+    save_file_suffix <- boot_options[["save_file_suffix"]]
+    window_size <- boot_options[["window_size"]]
+    number_of_intervals <- boot_options[["number_of_intervals"]] 
+    boot_rep <- boot_options[["boot_rep"]] 
+    n_boot <- boot_options[["n_boot"]] 
+    cores <- boot_options[["cores"]] 
+    parallel_run <- boot_options[["parallel_run"]] 
+    timepoints <- boot_options[["timepoints"]] 
+    rois <- boot_options[["rois"]]
     
     if (is.null(output_dir)){
       stop("Output directory is not set, exiting...")
@@ -66,35 +72,37 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
     
     if (is.null(subset.subject)) 
         subset.subject <- 1:nsubjects
+    else
+        subset.subject <- which(subset.subject %in% names(dataList))
     
     for (jj in subset.subject) {
         regions <- rois
         tjj <- dataList[[jj]]
         tjj <- data.matrix(tjj)
         tjj <- tjj[regions, ]
-        wywal.NAN1 <- list()
+        throw.NAN1 <- list()
         
         if (is.null(dim(tjj))) {
             tjj <- t(as.matrix(tjj, 1, timepoints))
         }
         
         for (ipk in 1:timepoints) {
-            wywal.NAN1[[ipk]] <- which(!is.finite(tjj[, ipk]))
+            throw.NAN1[[ipk]] <- which(!is.finite(tjj[, ipk]))
         }
         
         
-        wywal.NAN <- if (length(unique(unlist(wywal.NAN1))) != 0) {
-            unique(unlist(wywal.NAN1))
+        throw.NAN <- if (length(unique(unlist(throw.NAN1))) != 0) {
+            unique(unlist(throw.NAN1))
         } else {
             0
         }
         
         
-        if (length(wywal.NAN) != 1) {
-            tjj1 <- tjj[-wywal.NAN, ]
+        if (length(throw.NAN) != 1) {
+            tjj1 <- tjj[-throw.NAN, ]
         } else {
-            if (wywal.NAN != 0) {
-                tjj1 <- tjj[-wywal.NAN, ]
+            if (throw.NAN != 0) {
+                tjj1 <- tjj[-throw.NAN, ]
             } else {
                 tjj1 <- tjj
             }
@@ -107,50 +115,20 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
         all.data <- tjj
         rozmiar[jj, ] <- dim(tjj1)
         names.data.sub[jj, 1] <- tjj.name[jj]
-        
-        
-        
-        a.rozmiar <- rozmiar[jj, 1]
-        num.comp <- a.rozmiar * (a.rozmiar + 1)/2 - a.rozmiar
-        comparison <- matrix(NA, num.comp, 2)
-        
-        
+      
         path.out <- file.path(output_dir, paste(tjj.name[jj], save_file_suffix, "/", sep = ""))
         
         
         
         
         ############################################ 
-        
-        go.through <- c(1:length(rois) - 1)
-        go.through <- go.through[!(go.through %in% wywal.NAN)]
-        
-        iii <- 1
-        for (kk in go.through) {
-            
-            
-            doll <- max(2 - kk + 1, kk + 1)
-            go.through2 <- c(doll:(max(go.through) + 1))
-            go.through2 <- go.through2[!(go.through2 %in% wywal.NAN)]
-            
-            for (ll in go.through2) {
-                
-                comparison[iii, 1] <- kk
-                comparison[iii, 2] <- ll
-                iii <- iii + 1
-            }
-        }
-        
+        comparison <- t(utils::combn(rois[!(rois %in% throw.NAN)], 2)) # pairwise time series to be analysis
+
         
         ############# change window size 20, mad instead of sd
         n.sig <- timepoints  #number of time points
-        wind <- "w20"
         up_limit <- n.sig - window_size + 1
-        
-        upper_limit <- up_limit
-        
-        
-        cov.zero <- cov.static <- vector()
+
         boot.cjj <- matrix(NA, nrow = boot_rep, ncol = (up_limit))
         
         
@@ -162,7 +140,7 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
         
         cat(paste("Bootstrapping on ", tjj.name[jj], "\n"))
         
-        if(cores > 1){
+        if(isTRUE(parallel_run)){
           cl <- parallel::makePSOCKcluster(2)
           doParallel::registerDoParallel(cl, cores = cores)
         }
@@ -170,14 +148,6 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
         ############################### parallel
         
         '%dopar%' <- foreach::'%dopar%'
-        
-        # Check files exists or not, returns a list of files that need to be generated file2run <- function(target_folder,
-        # comparison, tjj.name, jj){ n <- nrow(comparison) file.existed <- list.files(target_folder) res <- c() for (i in 1:n){ ik
-        # <- comparison[i,1] ij <- comparison[i,2] kk<-ik ll<-ij name.of.subfile <-
-        # paste(tjj.name[jj],'_',as.character(regions[kk]),'_', as.character(regions[ll]),save_file_suffix,'_medians.RData' ,sep='')
-        # if (!name.of.subfile %in% file.existed){ res <- c(res, i) } } return(res) }
-        
-        # res <- file2run(path.out, comparison, tjj.name, jj) doParallel::registerDoParallel(cores = 3) print(comparison)
         
         i = 0
         foreach::foreach(i = 1:nrow(comparison)) %dopar% # for (i in 1:nrow(comparison))
@@ -240,14 +210,14 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
             
             
             
-            rd_dir <- file.path(path.out, "Rdata/")
+            #rd_dir <- file.path(path.out, "Rdata/")
             
-            dir.create(rd_dir, recursive = TRUE, showWarnings = FALSE)
-            dir.create(path = paste(output_dir, "/result", save_file_suffix, .Platform$file.sep, tjj.name[jj], save_file_suffix, 
+            #dir.create(rd_dir, recursive = TRUE, showWarnings = FALSE)
+            dir.create(path = paste(output_dir, "/result/", save_file_suffix, .Platform$file.sep, tjj.name[jj], save_file_suffix, 
                 sep = ""), showWarnings = FALSE, recursive = TRUE)
-            name.of.subfile <- paste(tjj.name[jj], "_", as.character(regions[kk]), "_", as.character(regions[ll]), save_file_suffix, 
-                ".RData", sep = "")
-            location.of.subfile <- file.path(rd_dir, name.of.subfile)
+            # name.of.subfile <- paste(tjj.name[jj], "_", as.character(regions[kk]), "_", as.character(regions[ll]), save_file_suffix, 
+            #     ".RData", sep = "")
+            #location.of.subfile <- file.path(rd_dir, name.of.subfile)
             # save(median_to_save, file= location.of.subfile)
             name.of.csvfile <- paste(tjj.name[jj], "_", as.character(regions[kk]), "_", as.character(regions[ll]), save_file_suffix, 
                 ".csv", sep = "")
@@ -255,7 +225,7 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
             DF <- data.table::data.table(to_save[[5]])
             data.table::fwrite(DF, paste(paste(output_dir, "/result", save_file_suffix, .Platform$file.sep, tjj.name[jj], save_file_suffix, 
                 sep = ""), .Platform$file.sep, name.of.csvfile, sep = ""), row.names = F)
-            data.table::fwrite(DF, location.of.subfile)
+            #data.table::fwrite(DF, location.of.subfile)
             
             invisible({
                 rm(list = c("coverage.zero", "coverage.static", "est.sd", "boot.cjj"))
@@ -267,7 +237,7 @@ MLPB_boot <- function(dataList, output_dir, rois, timepoints, subset.subject = N
         
         
     }
-    if(cores>1){
+    if(parallel_run){
       doParallel::stopImplicitCluster(cl)
     }
 }

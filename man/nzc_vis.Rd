@@ -42,6 +42,3 @@ nzc_vis(coverage.tbl.list, DynModel_results$modelDyn_results,
 rm(list=c('DynModel_results','coverage.tbl.list'))
 gc()}       
 }
-\keyword{Non-zero}
-\keyword{coverage,}
-\keyword{matrix}

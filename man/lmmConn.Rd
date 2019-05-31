@@ -4,32 +4,12 @@
 \alias{lmmConn}
 \title{Semiparametric modelling - Static}
 \usage{
-lmmConn(dataList, subjects, eff_time_points, num.scan, ntps.per.scan,
-  save_res = FALSE, output_dir = NULL, ci_level = 0.975,
-  ngrid = 201, cores = 1, seed = NULL)
+lmmConn(dataList, op_lme)
 }
 \arguments{
 \item{dataList}{list, list of data matrices .}
 
-\item{subjects}{character vector, names of subjects.}
-
-\item{eff_time_points}{integer vector, effective sacn timepoints.}
-
-\item{num.scan}{integer, number of scans.}
-
-\item{ntps.per.scan}{integer, number of timepoints per scan.}
-
-\item{save_res}{logical, whether to save the result or not, if true, an output directory should be provided.}
-
-\item{output_dir}{character, directory for output files.}
-
-\item{ci_level}{numeric, level of confidence interval, default is 0.975.}
-
-\item{ngrid}{integer, number of grids.}
-
-\item{cores}{integer, number of cores to register for parallel jobs.}
-
-\item{seed}{numeric, random seed.}
+\item{op_lme}{list, options constructed by function \code{options_lme}, see \code{options_lme}.}
 }
 \value{
 An object of list containing all the information of the static functional connectivity linear mixed model. It stores the information of model parameters, input data, and model results. 
@@ -78,7 +58,12 @@ time.points <- c(1:105, 126:230, 251:355,
 num.scan <- 6 # Each subject has 6 scans
 ntps.per.scan <- 105 # Each scan has 105 time points
 
-resConn <- lmmConn(MLPB_output_median, subjects, time.points, num.scan, ntps.per.scan)
+op <- options_lme(effective_tp = time.points, 
+                 ntps.per.scan = ntps.per.scan,
+                 subjects = subjects, 
+                 num.scan = num.scan)
+                 
+resConn <- lmmConn(MLPB_output_median, op)
 \dontshow{
 rm(list = c('subjects', 'MLPB_output_median', 'time.points', 'num.scan', 'ntps.per.scan','resConn'))
 gc()}
