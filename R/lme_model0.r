@@ -414,7 +414,7 @@ lmmConn <- function(dataList, op_lme) {
     }
     #class(output_obj) <- "dFClmm"
     if (cores>1){
-      doParallel::stopImplicitCluster(cl)
+      doParallel::stopImplicitCluster()
     }
 
     return(output_obj)

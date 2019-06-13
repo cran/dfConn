@@ -1,14 +1,14 @@
-4e06c0c90cf80ef78ba914e1bec878ca *DESCRIPTION
+7f2f2440d1d01ac0e4c6c89608f1da7a *DESCRIPTION
 8dc4dd367716da3d741838c6a8e830ed *LICENSE
 21da86b6ae198539350ff255573f58f5 *NAMESPACE
 1e70ac2c81d1c915a6bf6206f4b5638c *R/MLPB3.R
 09467175ccefa10462de4608b2b83769 *R/RcppExports.R
 c892bfcedfa1dc4dc17d51670001314d *R/data_summary_coverage.r
 771904ec595c41c37a5eaaa284955008 *R/dfConn.R
-d5671cf83533706468f3c8b415b08ee7 *R/lme_model0.r
-24545a08e008c35ae321f7dc5af9d147 *R/lme_model6.r
+b749e03984d9ca15a811abfb65c3083b *R/lme_model0.r
+08029809421056e5223c770639adea3f *R/lme_model6.r
 1ad2e4f3571ca0d04394a2ca5ee582f6 *R/lmm_ci_vis.R
-10de9afd3f87506ed921495122df2533 *R/mlpb.R
+aa2e08c0ed80e8dccb177d9cc2f664a8 *R/mlpb.R
 48345987ba7c60695901db2d4eb808ff *R/nzc_mat_construct.r
 1fb730251ba5da8c448d5b9023af4961 *R/nzc_mat_vis.r
 908ccbd25d8d7d557de29661f04c0d97 *R/option_control.R
@@ -16,7 +16,7 @@ a2f439f6db7c754a7f0182f6143947f4 *R/plots.r
 61f720d5cb54596384caeae466f95993 *R/setters.R
 2c37a0831138fdb226f49ea2d7864a03 *R/summary_table.r
 852948da1bed1d808d2a3739de5ae977 *R/sysdata.rda
-ca61c4002748c53a11a6f8ae5bc110de *R/utils.r
+4d70aaa38015d0cc3674979f4caaf496 *R/utils.r
 929fb0a54af8e643467cf9a4a5a63a25 *README.md
 1dc116c571fd89cef1cbde6dadb83f66 *data/DynModel_results.rda
 c48f1474670b3f46d96982ecdade3d4d *data/MLPB_output_median.rda

@@ -238,6 +238,6 @@ MLPB_boot <- function(boot_options) {
         
     }
     if(parallel_run){
-      doParallel::stopImplicitCluster(cl)
+      doParallel::stopImplicitCluster()
     }
 }

@@ -474,7 +474,7 @@ lmmDyn <- function(dataList, op_lme) {
   
     # Clean up cluster for parallel computing
     if(parallel_run){
-      doParallel::stopImplicitCluster(cl)
+      doParallel::stopImplicitCluster()
     }
 
     return(output_obj)
